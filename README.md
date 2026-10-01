@@ -4,7 +4,7 @@ One Databricks App, two switchable games. **Device alerts** opens by default. Bo
 
 ## Device Alert Dispatch
 
-<video controls width="100%" src="https://raw.githubusercontent.com/pavannaidu/ai_decide/main/docs/videos/device-alert-dispatch.webm"></video>
+![Device Alert Dispatch demo](docs/images/device-alert-dispatch.gif)
 
 Route synthetic MR and CT service alerts during a 60-second shift. AI_DECIDE chooses:
 
@@ -16,7 +16,7 @@ The game shows the live alert, exact AI exchange, measured latency, queue choice
 
 ## Lab Operations
 
-<video controls width="100%" src="https://raw.githubusercontent.com/pavannaidu/ai_decide/main/docs/videos/lab-operations.webm"></video>
+![Lab Operations demo](docs/images/lab-operations.gif)
 
 Observe the simulated lab, choose one move, apply it, and repeat. Stories cover a shared reagent issue, an equipment fault, and missing details.
 

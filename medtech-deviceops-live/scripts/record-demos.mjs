@@ -4,11 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const outputDir = resolve(appRoot, '..', 'docs', 'videos');
+const outputDir = resolve(appRoot, 'test-results', 'demo-videos');
 const temporaryDir = resolve(appRoot, 'test-results', 'demo-video-capture');
 const baseUrl = process.env.DEMO_BASE_URL ?? 'http://127.0.0.1:8766';
 const authToken = process.env.DEMO_AUTH_TOKEN;
-const minimumDurationMs = 12_000;
+const minimumDurationMs = 18_000;
 
 await rm(temporaryDir, { recursive: true, force: true });
 await mkdir(temporaryDir, { recursive: true });
@@ -32,8 +32,8 @@ async function record(name, path, play) {
   const context = await browser.newContext({
     colorScheme: 'light',
     extraHTTPHeaders: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
-    recordVideo: { dir: temporaryDir, size: { width: 1440, height: 900 } },
-    viewport: { width: 1440, height: 900 },
+    recordVideo: { dir: temporaryDir, size: { width: 1920, height: 1080 } },
+    viewport: { width: 1920, height: 1080 },
   });
   const page = await context.newPage();
   page.setDefaultTimeout(75_000);
@@ -62,17 +62,20 @@ await record('device-alert-dispatch', '/', async (page) => {
   await page.getByRole('button', { name: 'New shift', exact: true }).click();
   await created;
   await assertOnePage(page, 'device-alert-dispatch');
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(2_000);
 
   await page.getByRole('button', { name: /^Remote engineer:/ }).hover();
   await page.getByRole('tooltip').waitFor({ state: 'visible' });
-  await page.waitForTimeout(1_000);
+  await page.waitForTimeout(2_200);
+  await page.getByRole('heading', { name: 'Device Alert Dispatch', exact: true }).hover();
+  await page.waitForTimeout(800);
 
   const started = page.waitForResponse(
     (response) => response.url().includes('/clock') && response.request().method() === 'POST'
   );
   await page.getByRole('button', { name: 'Start shift', exact: true }).click();
   await started;
+  await page.waitForTimeout(3_500);
 
   const decided = page.waitForResponse(
     (response) => response.url().includes('/triage') && response.request().method() === 'POST',
@@ -81,6 +84,7 @@ await record('device-alert-dispatch', '/', async (page) => {
   await page.getByRole('button', { name: 'Ask AI_DECIDE', exact: true }).click();
   const decision = await decided;
   if (!decision.ok()) throw new Error(`Device AI_DECIDE call failed with ${decision.status()}.`);
+  await page.waitForTimeout(1_500);
 
   const paused = page.waitForResponse(
     (response) => response.url().includes('/clock') && response.request().method() === 'POST'
@@ -88,10 +92,13 @@ await record('device-alert-dispatch', '/', async (page) => {
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await paused;
   await assertOnePage(page, 'device-alert-dispatch result');
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(1_500);
 
   await page.getByRole('button', { name: /^Outcome details:/ }).hover();
   await page.getByRole('tooltip').waitFor({ state: 'visible' });
+  await page.waitForTimeout(2_500);
+  await page.getByRole('heading', { name: 'Device Alert Dispatch', exact: true }).hover();
+  await page.waitForTimeout(1_500);
 });
 
 await record('lab-operations', '/?demo=lab', async (page) => {
@@ -102,7 +109,7 @@ await record('lab-operations', '/?demo=lab', async (page) => {
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
   await restarted;
   await assertOnePage(page, 'lab-operations');
-  await page.waitForTimeout(1_000);
+  await page.waitForTimeout(2_000);
 
   const decided = page.waitForResponse(
     (response) => response.url().endsWith('/tick') && response.request().method() === 'POST',
@@ -112,6 +119,20 @@ await record('lab-operations', '/?demo=lab', async (page) => {
   const decision = await decided;
   if (!decision.ok()) throw new Error(`Lab AI_DECIDE call failed with ${decision.status()}.`);
   await assertOnePage(page, 'lab-operations result');
+  await page.waitForTimeout(1_500);
+
+  const autoplayDecision = page.waitForResponse(
+    (response) => response.url().endsWith('/tick') && response.request().method() === 'POST',
+    { timeout: 75_000 }
+  );
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  const autoplayResponse = await autoplayDecision;
+  if (!autoplayResponse.ok()) throw new Error(`Lab autoplay AI_DECIDE call failed with ${autoplayResponse.status()}.`);
+  await page.waitForTimeout(9_000);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.getByRole('button', { name: 'Ask AI_DECIDE', exact: true }).waitFor();
+  await assertOnePage(page, 'lab-operations autoplay result');
+  await page.waitForTimeout(1_500);
 });
 
 await browser.close();

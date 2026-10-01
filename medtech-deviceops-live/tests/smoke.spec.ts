@@ -4,6 +4,7 @@ import type { DecisionAnswers, DecisionRequest, RunView } from '../shared/types'
 test('puts the story and AI_DECIDE exchange on the main screen', async ({ page }) => {
   await page.goto('/?demo=lab');
   await expect(page.locator('html')).toHaveClass('light');
+  await expect(page.getByLabel('Choose demo', { exact: true })).toHaveValue('lab');
   await expect(page.getByRole('heading', { name: 'What should the lab do next?', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Request', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Response', exact: true })).toBeVisible();
@@ -18,7 +19,8 @@ test('puts the story and AI_DECIDE exchange on the main screen', async ({ page }
   await expect(page.locator('.run-state')).toHaveText('Turn 0 · paused');
   await expect(page.locator('.machine-button')).toHaveCount(12);
   await expect(page.locator('.reagent-canister')).toHaveCount(3);
-  await expect(page.locator('.about-demo')).not.toHaveAttribute('open', '');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(await page.evaluate('document.documentElement.scrollHeight <= window.innerHeight')).toBe(true);
 });
 
 test('shows the exact sent request and real response for one choice question', async ({ page }) => {

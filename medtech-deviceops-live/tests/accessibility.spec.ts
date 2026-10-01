@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-test('opens and closes the explanation by keyboard without moving focus', async ({ page }) => {
+test('opens and closes saved decisions by keyboard without moving focus', async ({ page }) => {
   await page.goto('/?demo=lab');
-  const trigger = page.locator('.about-demo > summary');
+  const trigger = page.locator('.previous-decisions > summary');
   await trigger.focus();
   await trigger.press('Enter');
-  await expect(page.locator('.about-copy')).toBeVisible();
+  await expect(page.locator('.history-empty')).toBeVisible();
   await expect(trigger).toBeFocused();
   await trigger.press('Enter');
-  await expect(page.locator('.about-copy')).toBeHidden();
+  await expect(page.locator('.history-empty')).toBeHidden();
   await expect(trigger).toBeFocused();
 });
 

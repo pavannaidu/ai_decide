@@ -14,7 +14,6 @@ import {
 import {
   ArrowRight,
   Bot,
-  ExternalLink,
   LoaderCircle,
   Pause,
   Play,
@@ -94,31 +93,9 @@ export function AlertGame() {
 
   return (
     <div className="alert-game">
-      <a className="ag-skip-link" href="#alert-game-main">
-        Skip to alert game
-      </a>
-      <header className="ag-header">
-        <div className="ag-wordmark">
-          <Radio size={20} aria-hidden="true" />
-          <span>Databricks</span>
-          <span className="ag-wordmark-divider">/</span>
-          <code>AI_DECIDE</code>
-        </div>
-        <div className="ag-header-right">
-          <Badge variant="outline">Synthetic game</Badge>
-          <a href="?demo=lab">
-            Lab demo <ArrowRight size={13} aria-hidden="true" />
-          </a>
-        </div>
-      </header>
-
       <main id="alert-game-main" className="ag-main">
         <section className="ag-intro">
-          <div>
-            <p className="ag-eyebrow">Medtech / imaging-equipment technical support</p>
-            <h1>Device Alert Dispatch</h1>
-            <p className="ag-lead">Route the alert. Not the diagnosis.</p>
-          </div>
+          <h1>Device Alert Dispatch</h1>
           <div
             className={`ag-clock${remainingMs <= 10_000 ? ' ag-clock--ending' : ''}`}
             aria-label="Synthetic shift clock"
@@ -131,11 +108,6 @@ export function AlertGame() {
               <span aria-label={`${(remainingMs / 1000).toFixed(1)} seconds remaining`}>
                 {(remainingMs / 1000).toFixed(1)}
                 <small>s</small>
-              </span>
-              <span className="ag-small-note">
-                Game time left
-                <br />
-                Not a service SLA
               </span>
             </div>
             <progress value={remainingMs} max={snapshot?.durationMs ?? 60_000} aria-label="Game time remaining" />
@@ -151,7 +123,7 @@ export function AlertGame() {
               onClick={() => void game.newShift('steady')}
             >
               <Radio size={14} aria-hidden="true" />
-              Steady feed
+              Steady
             </Button>
             <Button
               variant="ghost"
@@ -160,7 +132,7 @@ export function AlertGame() {
               onClick={() => void game.newShift('storm')}
             >
               <Zap size={14} aria-hidden="true" />
-              Alert storm
+              Storm
             </Button>
           </div>
           <div className="ag-play-controls">
@@ -258,17 +230,15 @@ export function AlertGame() {
           </div>
         )}
 
-        <div className="ag-scoreboard" aria-label="Server-scored synthetic shift results">
+        <div className="ag-scoreboard" aria-label="Live synthetic shift summary">
           {[
-            { label: 'Score', value: snapshot?.stats.score, detail: 'synthetic points' },
-            { label: 'Routed', value: snapshot?.stats.routed, detail: 'queue handoffs' },
+            { label: 'Waiting', value: snapshot?.pending, detail: 'technical alerts' },
+            { label: 'Routed', value: snapshot?.stats.routed, detail: 'service handoffs' },
             {
-              label: 'Rubric matches',
-              value: snapshot?.stats.matches,
-              detail: `${snapshot?.stats.mismatches ?? 0} mismatches`,
+              label: 'Score',
+              value: snapshot?.stats.score,
+              detail: `${snapshot?.stats.matches ?? 0} rubric matches`,
             },
-            { label: 'Missed', value: snapshot?.stats.missed, detail: 'game deadlines' },
-            { label: 'Streak', value: snapshot?.stats.streak, detail: `best ${snapshot?.stats.bestStreak ?? 0}` },
           ].map((metric) => (
             <div key={metric.label} className="ag-metric">
               <span>{metric.label}</span>
@@ -289,26 +259,6 @@ export function AlertGame() {
             </small>
           </div>
         </div>
-        <div className="ag-snapshot-note">
-          <span>Scores assess a synthetic routing rubric—not clinical correctness.</span>
-          <span>
-            {game.replay ? 'Saved snapshot' : 'Server snapshot'}
-            {' · '}
-            {game.run ? (
-              <time dateTime={game.replay?.createdAt ?? game.run.observedAt}>
-                {new Date(game.replay?.createdAt ?? game.run.observedAt).toLocaleTimeString([], {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  second: '2-digit',
-                })}
-              </time>
-            ) : (
-              'Connecting'
-            )}
-            {' · '}
-            {game.stale ? 'stale' : running ? 'polling every second' : 'paused'}
-          </span>
-        </div>
 
         {game.loading ? (
           <div className="ag-layout" aria-busy="true" aria-label="Loading the saved game">
@@ -317,15 +267,18 @@ export function AlertGame() {
           </div>
         ) : snapshot ? (
           <div className="ag-layout">
-            <AlertBoard
-              key={`${game.run?.id ?? 'game'}-${game.replay?.turn ?? 'live'}`}
-              snapshot={snapshot}
-              elapsedMs={game.elapsedMs}
-              nextAlertId={game.replay ? null : (game.run?.nextDecision?.alertId ?? null)}
-              pendingAlertId={game.pending?.alertId ?? null}
-              replay={!!game.replay}
-            />
-            <section className="ag-right-column" aria-label="Dispatch queues and exact decision evidence">
+            <aside className="ag-ai-column" aria-label="Exact AI_DECIDE request and response">
+              <AlertInspector game={game} />
+            </aside>
+            <section className="ag-operations-column" aria-label="Incoming alerts and service handoffs">
+              <AlertBoard
+                key={`${game.run?.id ?? 'game'}-${game.replay?.turn ?? 'live'}`}
+                snapshot={snapshot}
+                elapsedMs={game.elapsedMs}
+                nextAlertId={game.replay ? null : (game.run?.nextDecision?.alertId ?? null)}
+                pendingAlertId={game.pending?.alertId ?? null}
+                replay={!!game.replay}
+              />
               <AlertDispatch
                 snapshot={snapshot}
                 nextAlertId={game.replay ? null : (game.run?.nextDecision?.alertId ?? null)}
@@ -335,7 +288,6 @@ export function AlertGame() {
                   void game.triage(route);
                 }}
               />
-              <AlertInspector game={game} />
             </section>
           </div>
         ) : (
@@ -366,52 +318,6 @@ export function AlertGame() {
           </div>
         )}
 
-        <details className="ag-sources">
-          <summary>
-            <ExternalLink size={14} aria-hidden="true" />
-            Real-world inspiration: GE HealthCare OnWatch technical-service alerts
-            <span>Sources & boundaries</span>
-          </summary>
-          <div className="ag-source-grid">
-            <div>
-              <h3>A real service workflow</h3>
-              <p>
-                GE describes automated imaging-equipment alerts reviewed by a remote engineer, with on-site follow-up
-                when needed.
-              </p>
-              <a
-                href="https://www.gehealthcare.com/en-us/services/digital-solutions/onwatch"
-                target="_blank"
-                rel="noreferrer"
-              >
-                GE HealthCare OnWatch <ExternalLink size={13} aria-hidden="true" />
-              </a>
-            </div>
-            <div>
-              <h3>A concrete MRI example</h3>
-              <p>
-                GE publishes a cooling-airflow case: remote log review led to an on-site inspection that found a
-                saturated air filter.
-              </p>
-              <a href="https://landing1.gehealthcare.com/Innovation-Talk-Landing.html" target="_blank" rel="noreferrer">
-                MRI cooling / air-filter case <ExternalLink size={13} aria-hidden="true" />
-              </a>
-            </div>
-          </div>
-          <p className="ag-boundary">
-            GE is the workflow inspiration, not an AI_DECIDE customer claim. Devices, sites, notes, routing policy,
-            deadlines, and scores are fictional. These are technical-service alerts, not patient or clinical alarms.
-            Queue handoffs do not control a device, authorize its use, repair it, or automatically dispatch anyone.
-          </p>
-        </details>
-
-        <footer className="ag-footer">
-          <span>
-            Real AI_DECIDE calls · simulated alerts and handoffs ·{' '}
-            {game.health ? `Lakebase: ${game.health.lakebase}` : 'storage health unavailable'}
-          </span>
-          <span>No patient data · no device control</span>
-        </footer>
         <div className="ag-sr-only" role="status" aria-live="polite">
           {game.notice}
         </div>

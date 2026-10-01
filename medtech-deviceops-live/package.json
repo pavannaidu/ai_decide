@@ -19,6 +19,7 @@
     "test:e2e": "playwright test",
     "test:deployed": "node scripts/check-deployed.mjs",
     "preview:deployed": "node scripts/preview-deployed.mjs",
+    "record:demos": "node scripts/record-demos.mjs",
     "clean": "rm -rf client/dist dist build node_modules",
     "postinstall": "npm run typegen",
     "prebuild": "npm run sync && npm run typegen -- --wait",

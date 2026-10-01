@@ -1,34 +1,41 @@
-# Device Alert Dispatch
+# AI_DECIDE MedTech Demos
 
-**Route the alert. Not the diagnosis.**
+One Databricks App, two switchable games. **Device alerts** opens by default. Both games call the real AI_DECIDE REST API, display the exact request and response, and save evidence in Lakebase.
 
-![Device Alert Dispatch: incoming alerts, AI_DECIDE service-queue routing, and saved shift history](docs/images/alert-dispatch-demo.gif)
+## Device Alert Dispatch
 
-Recorded from the live app: synthetic alerts arrive, AI_DECIDE routes service handoffs, and Lakebase saves the decision history.
+<video controls width="100%" src="https://raw.githubusercontent.com/pavannaidu/ai_decide/main/docs/videos/device-alert-dispatch.webm"></video>
 
-## The real workflow
+Route synthetic MR and CT service alerts during a 60-second shift. AI_DECIDE chooses:
 
-[GE HealthCare OnWatch](https://www.gehealthcare.com/en-us/services/digital-solutions/onwatch) generates technical alerts from connected imaging equipment. Remote engineers investigate; on-site service follows when necessary. GE publishes an [MRI cooling-airflow example](https://landing1.gehealthcare.com/Innovation-Talk-Landing.html) where log review led to physical inspection and discovery of a saturated air filter.
+- **Remote engineer** — send available diagnostics for remote investigation.
+- **Field-service review** — hand off an existing recommendation for physical inspection.
+- **Get more information** — request missing or stale evidence first.
 
-Our game models the **first service handoff**, not that investigation. We do not claim GE uses AI_DECIDE.
+The game shows the live alert, exact AI exchange, measured latency, queue choice, and score on one screen.
 
-## Play
+## Lab Operations
 
-1. Start a 60-second shift. Synthetic alerts arrive from fictional MR/CT scanners, even while AI is thinking.
-2. Route the next alert yourself, ask AI_DECIDE, or turn on AI autopilot.
-3. Choose **Remote engineer**, **Field-service review**, or **Get more information**.
-4. Inspect the exact request, real response, measured API latency, and simulated handoff.
+<video controls width="100%" src="https://raw.githubusercontent.com/pavannaidu/ai_decide/main/docs/videos/lab-operations.webm"></video>
 
-Try an alert storm. Match the demo routing rubric before alerts expire; missed and incorrect routes remain visible. Points and countdowns are **game mechanics, not medical deadlines or validated performance measures**.
+Observe the simulated lab, choose one move, apply it, and repeat. Stories cover a shared reagent issue, an equipment fault, and missing details.
+
+## Real-world grounding
+
+[GE HealthCare OnWatch](https://www.gehealthcare.com/en-us/services/digital-solutions/onwatch) describes technical alerts from connected imaging equipment that are reviewed by remote engineers, with on-site service when needed. GE also publishes an [MRI cooling-airflow example](https://landing1.gehealthcare.com/Innovation-Talk-Landing.html) where remote log review led to physical inspection and discovery of a saturated air filter.
+
+The device game models only the **first service handoff**. It does not claim GE uses AI_DECIDE and does not diagnose, repair, dispatch, monitor patients, or make clinical decisions.
 
 ## Under the hood
 
 ```text
-Synthetic device alert + service policy → AI_DECIDE → queue handoff
+Synthetic operational state + governed policy → AI_DECIDE → simulated next action
+                                                   ↓
+                                      Lakebase decision evidence
 ```
 
-The app calls `POST /api/2.0/ai-functions/ai-decide`. Lakebase retains game state and exact decision evidence; replay makes no new AI call.
+Lakebase retains game state, the exact AI request and response, latency, and outcomes. Replay makes no new AI call.
 
-**Real AI and database; synthetic devices, alerts, and actions.** No patient alarms, clinical decisions, device control, automatic dispatch, or repair.
+**Real AI and database; synthetic devices, alerts, and actions.**
 
-[Development](medtech-deviceops-live/README.md) · [REST API](https://docs.databricks.com/api/ai-functions/v1/ai-decide) · [Previous lab demo](https://medtech-deviceops-live-7474645380671326.aws.databricksapps.com/?demo=lab)
+[Development](medtech-deviceops-live/README.md) · [AI_DECIDE REST API](https://docs.databricks.com/api/ai-functions/v1/ai-decide)

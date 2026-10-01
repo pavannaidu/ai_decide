@@ -1,5 +1,5 @@
-import { Badge, Button, Card } from '@databricks/appkit-ui/react';
-import { ArrowRight, Check, Clock3, History, LoaderCircle, Minus, UserRound } from 'lucide-react';
+import { Badge, Button, Card, Tooltip, TooltipContent, TooltipTrigger } from '@databricks/appkit-ui/react';
+import { ArrowRight, Check, Clock3, History, Info, LoaderCircle, Minus, UserRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ALERT_ROUTES } from '../../../shared/alerts';
 import type { useAlertGame } from '../useAlertGame';
@@ -29,10 +29,7 @@ export function AlertInspector({ game }: { game: ReturnType<typeof useAlertGame>
   return (
     <Card className="ag-inspector" data-game-no-shortcuts>
       <div className="ag-panel-heading">
-        <div>
-          <p className="ag-eyebrow">03 / See the decision</p>
-          <h2>One alert. One choice.</h2>
-        </div>
+        <h2>AI_DECIDE</h2>
         <Badge variant="outline">{source}</Badge>
       </div>
       {!game.replay && game.step && !game.pending && (
@@ -63,7 +60,7 @@ export function AlertInspector({ game }: { game: ReturnType<typeof useAlertGame>
       </div>
       <details className="ag-json" open>
         <summary>
-          <span>{human ? 'Recorded context' : 'Exact request'}</span>
+          <span>{human ? 'Context' : 'Request'}</span>
           <span>{request?.state.alert.id ?? 'No queued alert'}</span>
         </summary>
         {request ? (
@@ -76,7 +73,7 @@ export function AlertInspector({ game }: { game: ReturnType<typeof useAlertGame>
       </details>
       <details className="ag-json" open>
         <summary>
-          <span>{human ? 'Recorded handoff' : 'Exact response'}</span>
+          <span>{human ? 'Handoff' : 'Response'}</span>
           <span>
             {step ? `Handoff ${step.turn}` : game.routing ? 'In flight' : game.hasRetry ? 'Failed' : 'Not called'}
           </span>
@@ -128,20 +125,34 @@ export function AlertInspector({ game }: { game: ReturnType<typeof useAlertGame>
               {step.outcome.kind === 'late' ? 'Late response · no handoff' : routeLabel}
               <code>{step.selectedAction}</code>
             </p>
-            <p>{step.outcome.message}</p>
-            <details className="ag-rubric">
-              <summary>
-                Synthetic rubric:{' '}
-                {step.outcome.kind === 'match' ? 'match' : step.outcome.kind === 'late' ? 'too late' : 'mismatch'}
+            <div className="ag-outcome-meta">
+              <span>
+                {step.outcome.kind === 'match'
+                  ? 'Rubric match'
+                  : step.outcome.kind === 'late'
+                    ? 'Too late'
+                    : 'Rubric mismatch'}
                 {' · '}
                 {step.outcome.points > 0 ? '+' : ''}
                 {step.outcome.points} pts
-              </summary>
-              <p>{step.outcome.explanation}</p>
-              <p>
-                Rubric route: <code>{step.outcome.expectedRoute}</code>. Game scoring, not clinical correctness.
-              </p>
-            </details>
+              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="ag-outcome-help"
+                    type="button"
+                    aria-label={`Outcome details: ${step.outcome.message} ${step.outcome.explanation}`}
+                  >
+                    <Info size={13} aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="ag-outcome-tooltip" side="right" sideOffset={6}>
+                  <strong>{step.outcome.message}</strong>
+                  <span>{step.outcome.explanation}</span>
+                  <span>Expected route: {step.outcome.expectedRoute}</span>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </div>
       )}

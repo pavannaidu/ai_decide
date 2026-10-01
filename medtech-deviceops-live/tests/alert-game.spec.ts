@@ -56,7 +56,8 @@ async function openFreshShift(page: Page) {
   expect(response.ok(), 'The root game must create a real Lakebase-backed shift').toBe(true);
   const run = (await response.json()) as AlertGameRun;
   await expect(page.getByRole('heading', { name: 'Device Alert Dispatch', exact: true })).toBeVisible();
-  await expect(page.locator('.ag-device')).toHaveCount(12);
+  await expect(page.getByLabel('Choose demo', { exact: true })).toHaveValue('alerts');
+  await expect(page.locator('.ag-fleet-badge')).toHaveText('12 devices');
   await expect(page.getByRole('button', { name: 'Start shift', exact: true })).toBeEnabled();
   expect(await page.evaluate<string | null>('localStorage.getItem("deviceops-alert-game-v1")')).toBe(run.id);
   return run;
@@ -83,14 +84,20 @@ async function expectOutcome(page: Page, step: AlertGameStep) {
   const outcome = page.locator('.ag-outcome');
   await expect(outcome).toHaveClass(new RegExp(`\\bag-outcome--${step.outcome.kind}\\b`));
   await expect(outcome.locator('.ag-action-label code')).toHaveText(step.selectedAction);
-  await expect(outcome).toContainText(step.outcome.message);
-  const rubric = outcome.locator('.ag-rubric > summary');
   const result = step.outcome.kind === 'late' ? 'too late' : step.outcome.kind;
-  await expect(rubric).toContainText(`Synthetic rubric: ${result}`);
-  await expect(rubric).toContainText(`${step.outcome.points} pts`);
-  await rubric.click();
-  await expect(outcome).toContainText(step.outcome.explanation);
-  await expect(outcome).toContainText('Game scoring, not clinical correctness.');
+  await expect(outcome.locator('.ag-outcome-meta')).toContainText(
+    result === 'too late' ? 'Too late' : `Rubric ${result}`
+  );
+  await expect(outcome.locator('.ag-outcome-meta')).toContainText(`${step.outcome.points} pts`);
+  const details = outcome.getByRole('button', { name: /^Outcome details:/ });
+  await expect(details).toHaveAttribute(
+    'aria-label',
+    `Outcome details: ${step.outcome.message} ${step.outcome.explanation}`
+  );
+  await details.hover();
+  await expect(page.getByRole('tooltip')).toContainText(step.outcome.message);
+  await expect(page.getByRole('tooltip')).toContainText(step.outcome.explanation);
+  await details.press('Escape');
   if (step.outcome.kind === 'late') {
     await expect(outcome.locator('.ag-action-label')).toContainText('Late response · no handoff');
   } else {
@@ -100,23 +107,20 @@ async function expectOutcome(page: Page, step: AlertGameStep) {
   }
 }
 
-test('opens a fresh paused root game with twelve fictional MR/CT scanners and explicit boundaries', async ({
-  alertPage: page,
-}) => {
+test('opens a compact paused root game with twelve fictional MR/CT scanners', async ({ alertPage: page }) => {
   const triages = trackTriages(page);
   const run = await openFreshShift(page);
   expect(run.snapshot.running).toBe(false);
   expect(run.snapshot.elapsedMs).toBe(0);
   expect(run.snapshot.devices).toHaveLength(12);
   expect(new Set(run.snapshot.devices.map((device) => device.modality))).toEqual(new Set(['MR', 'CT']));
-  await expect(page.getByRole('heading', { name: 'Connected-device feed', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Incoming alerts', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Three queues. One next move.', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'One alert. One choice.', exact: true })).toBeVisible();
-  await expect(page.locator('.ag-fleet-badge')).toHaveText('12 fictional scanners');
-  for (const device of run.snapshot.devices) {
-    await expect(page.getByRole('button', { name: new RegExp(`^${device.id}, ${device.modality},`) })).toBeVisible();
-  }
+  await expect(page.getByRole('heading', { name: 'Choose a queue', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'AI_DECIDE', exact: true })).toBeVisible();
+  await expect(page.locator('.ag-fleet-badge')).toHaveText('12 devices');
+  await expect(page.getByLabel(`Observed evidence for ${run.nextDecision!.alertId}`, { exact: true })).toContainText(
+    run.nextDecision!.request.state.device.site
+  );
   await expect(page.locator('.ag-clock-top')).toContainText('Shift paused');
   await expect(page.getByRole('progressbar', { name: 'Game time remaining', exact: true })).toHaveAttribute(
     'value',
@@ -132,14 +136,21 @@ test('opens a fresh paused root game with twelve fictional MR/CT scanners and ex
   const request = page.getByLabel('Exact AI_DECIDE request', { exact: true });
   expect(JSON.parse((await request.textContent())!) as AlertDecisionRequest).toEqual(run.nextDecision?.request);
   await expect(page.getByLabel('Exact AI_DECIDE response', { exact: true })).toHaveCount(0);
-  await expect(page.locator('.ag-queue-caption')).toHaveText('Countdowns are game deadlines—not medical service SLAs.');
-  await expect(page.locator('.ag-snapshot-note')).toContainText(
-    'Scores assess a synthetic routing rubric—not clinical correctness.'
-  );
-  await page.locator('.ag-sources > summary').click();
-  await expect(page.locator('.ag-boundary')).toContainText('not an AI_DECIDE customer claim');
-  await expect(page.locator('.ag-boundary')).toContainText('not patient or clinical alarms');
-  await expect(page.locator('.ag-footer')).toContainText('No patient data · no device control');
+  await expect(page.getByText('A technical alert comes in. AI_DECIDE chooses the next service queue.')).toHaveCount(0);
+  await expect(page.getByText('Scores assess a synthetic routing rubric—not clinical correctness.')).toHaveCount(0);
+  for (const route of ALERT_ROUTES) {
+    await expect(page.getByText(route.description, { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: `${route.label}: ${route.description}`, exact: true })).toBeVisible();
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(await page.evaluate('document.documentElement.scrollHeight <= window.innerHeight')).toBe(true);
+  const demoPicker = page.getByLabel('Choose demo', { exact: true });
+  await demoPicker.selectOption('lab');
+  await expect(page).toHaveURL(/\?demo=lab$/);
+  await expect(page.getByRole('heading', { name: 'What should the lab do next?', exact: true })).toBeVisible();
+  await demoPicker.selectOption('alerts');
+  await expect(page).not.toHaveURL(/demo=lab/);
+  await expect(page.getByRole('heading', { name: 'Device Alert Dispatch', exact: true })).toBeVisible();
   expect(triages).toHaveLength(0);
 });
 
@@ -317,20 +328,18 @@ test('keeps the game and its real request usable across supported responsive wid
       await page.evaluate<boolean>('document.documentElement.scrollWidth <= window.innerWidth'),
       `The document must not overflow at ${width}px`
     ).toBe(true);
-    await expect(page.locator('.ag-device')).toHaveCount(12);
+    await expect(page.locator('.ag-fleet-badge')).toHaveText('12 devices');
     await expect(page.getByRole('button', { name: 'Start shift', exact: true })).toBeVisible();
     await expect(page.getByLabel('Exact AI_DECIDE request', { exact: true })).toBeVisible();
-    const feed = await page.getByRole('region', { name: 'Device feed and incoming alerts', exact: true }).boundingBox();
-    const dispatch = await page
-      .getByRole('region', { name: 'Dispatch queues and exact decision evidence', exact: true })
-      .boundingBox();
-    expect(feed).not.toBeNull();
-    expect(dispatch).not.toBeNull();
-    if (width > 940) {
-      expect(dispatch!.x).toBeGreaterThanOrEqual(feed!.x + feed!.width - 1);
-      expect(Math.abs(dispatch!.y - feed!.y)).toBeLessThan(2);
+    const exchange = await page.locator('.ag-ai-column').boundingBox();
+    const operations = await page.locator('.ag-operations-column').boundingBox();
+    expect(exchange).not.toBeNull();
+    expect(operations).not.toBeNull();
+    if (width > 820) {
+      expect(operations!.x).toBeGreaterThanOrEqual(exchange!.x + exchange!.width - 1);
+      expect(Math.abs(operations!.y - exchange!.y)).toBeLessThan(2);
     } else {
-      expect(dispatch!.y).toBeGreaterThanOrEqual(feed!.y + feed!.height - 1);
+      expect(operations!.y).toBeGreaterThanOrEqual(exchange!.y + exchange!.height - 1);
     }
   }
 });
@@ -341,7 +350,7 @@ test('autopilot serially routes an alert storm and stops without overlapping inf
   test.setTimeout(60_000);
   await openFreshShift(page);
   const stormCreated = page.waitForResponse((response) => matchesResponse(response, '/api/alert-games', 'POST'));
-  await page.getByRole('button', { name: 'Alert storm', exact: true }).click();
+  await page.getByRole('button', { name: 'Storm', exact: true }).click();
   const storm = (await (await stormCreated).json()) as AlertGameRun;
   await expect(page.getByRole('button', { name: 'Start shift', exact: true })).toBeEnabled();
   const triages = trackTriages(page);
@@ -380,20 +389,17 @@ test('autopilot serially routes an alert storm and stops without overlapping inf
   expect(triages).toHaveLength(count);
 });
 
-test('supports focused keyboard evidence, expandable boundaries, and reduced motion without handoffs', async ({
+test('supports focused keyboard evidence, route help, and reduced motion without handoffs', async ({
   alertPage: page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const triages = trackTriages(page);
   const run = await openFreshShift(page);
-  const sources = page.locator('.ag-sources > summary');
-  await sources.focus();
-  await sources.press('Enter');
-  await expect(page.locator('.ag-boundary')).toBeVisible();
-  await expect(sources).toBeFocused();
-  await sources.press('Enter');
-  await expect(page.locator('.ag-boundary')).toBeHidden();
-  await expect(sources).toBeFocused();
+  const routeHelp = page.getByRole('button', { name: /^Remote engineer:/ });
+  await routeHelp.focus();
+  await expect(page.getByRole('tooltip')).toContainText(ALERT_ROUTES[0].description);
+  await expect(routeHelp).toBeFocused();
+  await routeHelp.press('Escape');
   const request = page.getByLabel('Exact AI_DECIDE request', { exact: true });
   await expect(request).toHaveAttribute('tabindex', '0');
   const originalRequest = await request.textContent();
@@ -408,16 +414,19 @@ test('supports focused keyboard evidence, expandable boundaries, and reduced mot
     )
     .toBeGreaterThan(0);
   const alert = run.nextDecision!.request.state.alert;
-  const device = page.getByRole('button', { name: new RegExp(`^${alert.deviceId},`) });
-  await device.focus();
-  await device.press('Enter');
-  await expect(device).toBeFocused();
-  await expect(device).toHaveAttribute('aria-pressed', 'true');
+  const queueAlert = page
+    .getByRole('list', { name: 'Queued technical alerts', exact: true })
+    .getByRole('button')
+    .first();
+  await queueAlert.focus();
+  await queueAlert.press('Enter');
+  await expect(queueAlert).toBeFocused();
+  await expect(queueAlert).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel(`Observed evidence for ${alert.id}`, { exact: true })).toContainText(alert.signal);
   await expect(request).toHaveText(originalRequest!);
   for (const property of ['animationDuration', 'transitionDuration']) {
     const durations = await page.evaluate<string>(
-      `getComputedStyle(document.querySelector(".ag-device[aria-pressed=true]")).${property}`
+      `getComputedStyle(document.querySelector(".ag-alert-row[aria-pressed=true]")).${property}`
     );
     expect(Math.max(...durations.split(',').map((duration) => parseFloat(duration)))).toBeLessThanOrEqual(0.001);
   }
